@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор медицинских услуг</title>
+
+<!-- SheetJS для чтения xlsx -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+  :root{
+    --med-blue:#0b4f8a;
+    --med-blue-dark:#073863;
+    --med-teal:#12a3a3;
+    --med-light:#eaf4fb;
+    --med-accent:#4fc3f7;
+    --danger:#e74c3c;
+    --ok:#1abc9c;
+    --shadow:0 6px 22px rgba(11,79,138,.12);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;font-family:'Segoe UI',Tahoma,sans-serif;color:#1c2b3a;background:#f4f8fc}
+  body{
+    background-image:
+      radial-gradient(circle at 10% 0%, rgba(79,195,247,.15), transparent 40%),
+      radial-gradient(circle at 90% 10%, rgba(18,163,163,.12), transparent 45%),
+      linear-gradient(180deg,#f4f8fc 0%,#eaf4fb 100%);
+    min-height:100vh;
+  }
+
+  /* ===== Шапка ===== */
+  header{
+    background:linear-gradient(135deg,var(--med-blue) 0%, var(--med-blue-dark) 100%);
+    color:#fff;padding:26px 40px;position:relative;overflow:hidden;
+    box-shadow:var(--shadow);
+  }
+  header::after{
+    content:"";position:absolute;right:-40px;top:-40px;width:220px;height:220px;
+    border-radius:50%;background:rgba(79,195,247,.18);
+  }
+  header::before{
+    content:"";position:absolute;right:60px;bottom:-60px;width:120px;height:120px;
+    border-radius:50%;background:rgba(18,163,163,.25);
+  }
+  header h1{margin:0;font-size:26px;letter-spacing:.5px;display:flex;align-items:center;gap:14px}
+  header .cross{
+    width:38px;height:38px;background:#fff;border-radius:9px;position:relative;flex:0 0 auto;
+    box-shadow:0 0 0 4px rgba(255,255,255,.25);
+  }
+  header .cross::before,header .cross::after{
+    content:"";position:absolute;background:var(--med-blue);border-radius:2px;
+  }
+  header .cross::before{width:8px;height:26px;left:15px;top:6px}
+  header .cross::after{width:26px;height:8px;left:6px;top:15px}
+  header p{margin:6px 0 0;opacity:.85;font-size:14px}
+
+  /* ===== Основной layout ===== */
+  .layout{
+    display:grid;grid-template-columns:1.4fr 1fr;gap:22px;
+    max-width:1400px;margin:26px auto;padding:0 22px;
+  }
+  @media(max-width:980px){.layout{grid-template-columns:1fr}}
+
+  .panel{
+    background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+    overflow:hidden;border:1px solid #dceaf5;
+  }
+  .panel-head{
+    background:linear-gradient(90deg,#f0f7fd,#ffffff);
+    padding:16px 20px;border-bottom:1px solid #e2eef7;
+    display:flex;align-items:center;gap:10px;
+    font-weight:600;color:var(--med-blue-dark);font-size:16px;
+  }
+  .panel-head .dot{
+    width:10px;height:10px;border-radius:50%;background:var(--med-teal);
+    box-shadow:0 0 0 4px rgba(18,163,163,.18);
+  }
+
+  /* ===== Поиск ===== */
+  .search-wrap{padding:16px 20px 4px;position:sticky;top:0;background:#fff;z-index:5}
+  .search-box{position:relative}
+  .search-box input{
+    width:100%;padding:14px 46px 14px 44px;font-size:15px;
+    border:2px solid #d9e7f2;border-radius:12px;outline:none;
+    transition:.25s;background:#fbfdff;
+  }
+  .search-box input:focus{
+    border-color:var(--med-accent);
+    box-shadow:0 0 0 4px rgba(79,195,247,.18);
+    background:#fff;
+  }
+  .search-box .icon{
+    position:absolute;left:14px;top:50%;transform:translateY(-50%);
+    color:var(--med-blue);opacity:.7;font-size:17px;
+  }
+  .search-box .clear{
+    position:absolute;right:10px;top:50%;transform:translateY(-50%);
+    border:none;background:#eaf4fb;color:var(--med-blue);
+    width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;
+    transition:.2s;
+  }
+  .search-box .clear:hover{background:var(--med-blue);color:#fff;transform:translateY(-50%) rotate(90deg)}
+  .search-meta{padding:8px 20px 12px;font-size:13px;color:#678;display:flex;justify-content:space-between}
+  .chip{
+    background:var(--med-light);color:var(--med-blue);padding:3px 10px;border-radius:20px;
+    font-size:12px;font-weight:600;
+  }
+
+  /* ===== Список услуг ===== */
+  .services{max-height:600px;overflow-y:auto;padding:0 12px 16px}
+  .services::-webkit-scrollbar{width:8px}
+  .services::-webkit-scrollbar-thumb{background:#c4dcef;border-radius:4px}
+  .services::-webkit-scrollbar-thumb:hover{background:var(--med-accent)}
+
+  .group-title{
+    margin:14px 8px 6px;font-size:12px;font-weight:700;letter-spacing:.6px;
+    text-transform:uppercase;color:var(--med-teal);
+    border-left:3px solid var(--med-teal);padding-left:8px;
+  }
+  .service{
+    display:flex;align-items:flex-start;gap:12px;
+    padding:12px 14px;margin:6px 4px;border-radius:10px;
+    border:1px solid #e8f1f8;background:#fff;cursor:pointer;
+    transition:all .22s cubic-bezier(.2,.7,.3,1);position:relative;
+  }
+  .service:hover{
+    transform:translateY(-2px);
+    border-color:var(--med-accent);
+    box-shadow:0 8px 18px rgba(79,195,247,.18);
+    background:linear-gradient(90deg,#f7fcff,#ffffff);
+  }
+  .service.selected{
+    border-color:var(--med-teal);
+    background:linear-gradient(90deg,#e9fbf8,#ffffff);
+  }
+  .service.selected::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+    background:var(--med-teal);border-radius:10px 0 0 10px;
+  }
+  .service input[type=checkbox]{
+    appearance:none;width:22px;height:22px;flex:0 0 auto;margin-top:2px;
+    border:2px solid #b9d3e6;border-radius:6px;cursor:pointer;position:relative;
+    transition:.2s;background:#fff;
+  }
+  .service input[type=checkbox]:hover{border-color:var(--med-accent)}
+  .service input[type=checkbox]:checked{
+    background:var(--med-teal);border-color:var(--med-teal);
+    transform:scale(1.08);
+  }
+  .service input[type=checkbox]:checked::after{
+    content:"✓";position:absolute;color:#fff;font-size:15px;font-weight:bold;
+    left:3px;top:-2px;
+  }
+  .service-body{flex:1;min-width:0}
+  .service-name{font-size:14px;line-height:1.35;color:#1c2b3a}
+  .service-code{font-size:11px;color:#8aa2b8;margin-top:3px;font-family:monospace}
+  .service-price{
+    font-weight:700;color:var(--med-blue);white-space:nowrap;
+    font-size:14px;margin-left:6px;
+  }
+
+  /* ===== Корзина ===== */
+  .cart{padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:13px;font-weight:600;color:#3a556b}
+  .field input{
+    padding:11px 13px;border:2px solid #d9e7f2;border-radius:10px;font-size:14px;
+    outline:none;transition:.2s;background:#fbfdff;
+  }
+  .field input:focus{
+    border-color:var(--med-accent);box-shadow:0 0 0 4px rgba(79,195,247,.15);background:#fff;
+  }
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+  .cart-items{max-height:340px;overflow-y:auto;border:1px dashed #d2e2ee;border-radius:10px;padding:8px;background:#fbfdff}
+  .cart-items::-webkit-scrollbar{width:6px}
+  .cart-items::-webkit-scrollbar-thumb{background:#c4dcef;border-radius:3px}
+  .empty{color:#9bb0c2;text-align:center;padding:26px 10px;font-size:14px}
+  .cart-item{
+    display:flex;justify-content:space-between;gap:10px;align-items:flex-start;
+    padding:9px 10px;border-radius:8px;font-size:13px;
+    transition:.2s;border:1px solid transparent;
+  }
+  .cart-item:hover{background:#eef7fd;border-color:#d5e8f5}
+  .cart-item .info{flex:1;min-width:0}
+  .cart-item .name{line-height:1.3}
+  .cart-item .code{font-size:10.5px;color:#8aa2b8;font-family:monospace}
+  .cart-item .price{font-weight:700;color:var(--med-blue);white-space:nowrap}
+  .cart-item .del{
+    border:none;background:transparent;color:#c0cedd;cursor:pointer;font-size:15px;
+    padding:0 2px;transition:.2s;
+  }
+  .cart-item .del:hover{color:var(--danger);transform:scale(1.2)}
+
+  .totals{
+    background:linear-gradient(135deg,#f0f8ff,#e6f4ff);border-radius:12px;padding:14px 16px;
+    border:1px solid #d3e8f7;
+  }
+  .totals .line{display:flex;justify-content:space-between;padding:5px 0;font-size:14px}
+  .totals .line.total{
+    border-top:2px dashed #b9d3e6;margin-top:8px;padding-top:12px;
+    font-size:19px;font-weight:800;color:var(--med-blue-dark);
+  }
+  .totals .line.discount{color:var(--danger);font-weight:600}
+
+  .btn{
+    border:none;border-radius:11px;padding:14px;font-size:15px;font-weight:700;
+    cursor:pointer;transition:.25s;letter-spacing:.3px;
+  }
+  .btn-primary{
+    background:linear-gradient(135deg,var(--med-teal),#0d8b8b);color:#fff;
+    box-shadow:0 6px 16px rgba(18,163,163,.35);
+  }
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(18,163,163,.45)}
+  .btn-primary:active{transform:translateY(0)}
+  .btn-danger{
+    background:#fdecea;color:var(--danger);border:1px solid #f6c8c2;
+  }
+  .btn-danger:hover{background:var(--danger);color:#fff}
+
+  /* ===== Модальное уведомление ===== */
+  .toast{
+    position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(120%);
+    background:var(--med-blue-dark);color:#fff;padding:13px 26px;border-radius:30px;
+    box-shadow:var(--shadow);font-size:14px;transition:.4s cubic-bezier(.2,.8,.3,1);z-index:99;
+  }
+  .toast.show{transform:translateX(-50%) translateY(0)}
+
+  .loader{text-align:center;padding:40px;color:#7d95aa}
+  .loader .spin{
+    width:34px;height:34px;border:4px solid #d9e7f2;border-top-color:var(--med-teal);
+    border-radius:50%;margin:0 auto 12px;animation:spin .9s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="cross"></span>Калькулятор медицинских услуг</h1>
+  <p>Выберите услуги, сформируйте комплекс и выгрузите расчёт в Excel</p>
+</header>
+
+<div class="layout">
+  <!-- ЛЕВАЯ ПАНЕЛЬ: поиск + список -->
+  <section class="panel">
+    <div class="panel-head"><span class="dot"></span>Каталог услуг</div>
+    <div class="search-wrap">
+      <div class="search-box">
+        <span class="icon">🔍</span>
+        <input id="search" type="text" placeholder="Поиск по названию или коду услуги..." autocomplete="off">
+        <button class="clear" id="clearSearch" title="Очистить">✕</button>
+      </div>
+    </div>
+    <div class="search-meta">
+      <span>Найдено: <b id="foundCount">0</b></span>
+      <span class="chip">Выбрано: <b id="pickedCount">0</b></span>
+    </div>
+    <div class="services" id="services">
+      <div class="loader"><div class="spin"></div>Загрузка каталога услуг...</div>
+    </div>
+  </section>
+
+  <!-- ПРАВАЯ ПАНЕЛЬ: корзина -->
+  <section class="panel">
+    <div class="panel-head"><span class="dot" style="background:var(--med-accent)"></span>Собранный комплекс</div>
+    <div class="cart">
+      <div class="field">
+        <label>Название комплекса</label>
+        <input id="complexName" type="text" placeholder="Например: Комплекс «Здоровое сердце»">
+      </div>
+
+      <div class="field">
+        <label>Выбранные услуги</label>
+        <div class="cart-items" id="cartItems">
+          <div class="empty">Пока ничего не выбрано.<br>Отметьте услуги в каталоге слева.</div>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Скидка, %</label>
+          <input id="discount" type="number" min="0" max="100" step="1" value="0">
+        </div>
+        <div class="field">
+          <label>Позиций</label>
+          <input id="positions" type="text" value="0" readonly style="background:#eef7fd;font-weight:700;color:var(--med-blue)">
+        </div>
+      </div>
+
+      <div class="totals">
+        <div class="line"><span>Сумма услуг:</span><span id="sumTotal">0 ₽</span></div>
+        <div class="line discount"><span>Скидка:</span><span id="discountValue">0 ₽</span></div>
+        <div class="line total"><span>Итого со скидкой:</span><span id="grandTotal">0 ₽</span></div>
+      </div>
+
+      <button class="btn btn-primary" id="exportBtn">📥 Выгрузить в Excel</button>
+      <button class="btn btn-danger" id="resetBtn">Очистить всё</button>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   Калькулятор медицинских услуг
+   Данные читаются из price_01.10.26.xlsx (лежит в корне репозитория)
+   ===================================================================== */
+
+const XLSX_FILE = 'price_01.10.26.xlsx';
+
+// Поля состояния
+let allServices = [];        // {code, name, price, group, subgroup}
+let selected = new Map();    // code -> service  (Map сохраняет порядок добавления)
+let currentQuery = '';
+
+const $ = id => document.getElementById(id);
+
+/* ---------- Утилиты ---------- */
+function parsePrice(raw){
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === 'number') return raw;
+  const s = String(raw).trim();
+  if (!s || /по\s*запросу/i.test(s)) return null;
+  // убираем пробелы, неразрывные пробелы, ₽, "руб." и т.п.
+  const cleaned = s.replace(/[^\d.,]/g,'').replace(/\s/g,'');
+  // если запятая как десятичный разделитель и точка как тысячный — нормализуем
+  let normalized = cleaned;
+  if (cleaned.includes(',') && cleaned.includes('.')){
+    normalized = cleaned.replace(/\./g,'').replace(',', '.');
+  } else if (cleaned.includes(',')){
+    normalized = cleaned.replace(',', '.');
+  }
+  const n = parseFloat(normalized);
+  return isNaN(n) ? null : n;
+}
+
+function formatMoney(n){
+  if (n === null || n === undefined || isNaN(n)) return 'по запросу';
+  return n.toLocaleString('ru-RU') + ' ₽';
+}
+
+function formatNumber(n){
+  return (Math.round(n * 100) / 100).toLocaleString('ru-RU');
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function showToast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+/* ---------- Загрузка xlsx ---------- */
+async function loadPrices(){
+  try{
+    const resp = await fetch(XLSX_FILE + '?v=' + Date.now());
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const buf = await resp.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+    // Определяем индексы колонок из первой строки-заголовка
+    // Ожидаем: Код | Наименование услуги | Стоимость, руб.
+    let headerRow = 0;
+    for (let i=0;i<Math.min(rows.length,5);i++){
+      const r = rows[i].map(x=>String(x).toLowerCase());
+      if (r.some(x=>x.includes('код')) && r.some(x=>x.includes('наимен'))){
+        headerRow = i; break;
+      }
+    }
+    const header = rows[headerRow].map(x=>String(x).toLowerCase().trim());
+    let colCode = header.findIndex(h=>h.includes('код'));
+    let colName = header.findIndex(h=>h.includes('наимен'));
+    let colPrice = header.findIndex(h=>h.includes('стоим') || h.includes('цена'));
+    if (colCode < 0) colCode = 0;
+    if (colName < 0) colName = 1;
+    if (colPrice < 0) colPrice = 2;
+
+    let lastGroup = '';
+    let lastSubgroup = '';
+    const list = [];
+
+    for (let i = headerRow+1; i < rows.length; i++){
+      const row = rows[i];
+      if (!row) continue;
+      const code = String(row[colCode] ?? '').trim();
+      const name = String(row[colName] ?? '').trim();
+      const rawPrice = row[colPrice];
+
+      // Пустая строка с одним текстом в колонке B -> это заголовок группы
+      if (!code && name && (rawPrice === '' || rawPrice === undefined)){
+        // Раздел или подраздел: если уже была подгруппа или это первый заголовок
+        // Простая эвристика: если название начинается с заглавной и не содержит
+        // типовых префиксов "Стандартные", "Консультации", "Телеконсультации",
+        // "Манипуляции", "Обследования" и т.п. — считаем это новой большой группой.
+        const subMarkers = ['стандартные','консультации','телеконсультации','прочие','помощь на дому',
+                            'манипуляции','обследования','оперативные','анестезия','вакцинация',
+                            'компоненты крови','гемотрансфузия','лечение с использованием',
+                            'комплексы услуг','радиоволновое удаление','picc','анестезиология'];
+        const isSub = subMarkers.some(m => name.toLowerCase().startsWith(m));
+        if (isSub){
+          lastSubgroup = name;
+        } else {
+          lastGroup = name;
+          lastSubgroup = '';
+        }
+        continue;
+      }
+
+      // Строка с услугой
+      if (code && name){
+        const price = parsePrice(rawPrice);
+        list.push({
+          code,
+          name,
+          price,
+          group: lastGroup || 'Прочее',
+          subgroup: lastSubgroup || ''
+        });
+      }
+    }
+
+    allServices = list;
+    $('services').innerHTML = '';
+    renderServices();
+    updateCart();
+  }catch(err){
+    console.error(err);
+    $('services').innerHTML =
+      `<div class="loader" style="color:#c0392b">
+        ⚠ Не удалось загрузить файл <b>${XLSX_FILE}</b>.<br>
+        <small>Убедитесь, что он лежит рядом с index.html и открываете сайт через сервер (а не file://).</small>
+      </div>`;
+  }
+}
+
+/* ---------- Отрисовка списка услуг ---------- */
+function renderServices(){
+  const q = currentQuery.trim().toLowerCase();
+  const container = $('services');
+  container.innerHTML = '';
+
+  // Фильтр: если запрос пустой — показываем ВСЕ услуги
+  const filtered = !q ? allServices : allServices.filter(s =>
+    s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
+  );
+
+  $('foundCount').textContent = filtered.length;
+
+  if (filtered.length === 0){
+    container.innerHTML = '<div class="empty">По вашему запросу ничего не найдено.</div>';
+    return;
+  }
+
+  // Группировка: group -> subgroup -> services
+  const grouped = new Map();
+  for (const s of filtered){
+    const g = s.group || 'Прочее';
+    const sg = s.subgroup || '';
+    if (!grouped.has(g)) grouped.set(g, new Map());
+    const sub = grouped.get(g);
+    if (!sub.has(sg)) sub.set(sg, []);
+    sub.get(sg).push(s);
+  }
+
+  let html = '';
+  for (const [group, subs] of grouped){
+    html += `<div class="group-title">${escapeHtml(group)}</div>`;
+    for (const [sub, items] of subs){
+      if (sub){
+        html += `<div class="group-title" style="color:#678;border-color:#cfdbe6;font-size:11px">${escapeHtml(sub)}</div>`;
+      }
+      for (const s of items){
+        const checked = selected.has(s.code) ? 'checked' : '';
+        const selCls = selected.has(s.code) ? 'selected' : '';
+        html += `
+          <label class="service ${selCls}" data-code="${escapeHtml(s.code)}">
+            <input type="checkbox" ${checked}>
+            <div class="service-body">
+              <div class="service-name">${escapeHtml(s.name)}</div>
+              <div class="service-code">${escapeHtml(s.code)}</div>
+            </div>
+            <div class="service-price">${formatMoney(s.price)}</div>
+          </label>`;
+      }
+    }
+  }
+  container.innerHTML = html;
+
+  // Навешиваем обработчики
+  container.querySelectorAll('.service').forEach(el=>{
+    const cb = el.querySelector('input[type=checkbox]');
+    const code = el.dataset.code;
+    const toggle = () => {
+      const svc = allServices.find(x=>x.code === code);
+      if (!svc) return;
+      if (selected.has(code)) selected.delete(code);
+      else selected.set(code, svc);
+      el.classList.toggle('selected', selected.has(code));
+      updateCart();
+    };
+    el.addEventListener('click', e => {
+      // клик по label не должен дважды срабатывать: чекбокс сам вызовет change
+      if (e.target.tagName !== 'INPUT') { e.preventDefault(); cb.checked = !cb.checked; toggle(); }
+    });
+    cb.addEventListener('change', toggle);
+  });
+}
+
+/* ---------- Отрисовка корзины и итогов ---------- */
+function updateCart(){
+  const box = $('cartItems');
+  if (selected.size === 0){
+    box.innerHTML = '<div class="empty">Пока ничего не выбрано.<br>Отметьте услуги в каталоге слева.</div>';
+  } else {
+    let html = '';
+    for (const [code, s] of selected){
+      html += `
+        <div class="cart-item" data-code="${escapeHtml(code)}">
+          <div class="info">
+            <div class="name">${escapeHtml(s.name)}</div>
+            <div class="code">${escapeHtml(s.code)}</div>
+          </div>
+          <div class="price">${formatMoney(s.price)}</div>
+          <button class="del" title="Удалить">✕</button>
+        </div>`;
+    }
+    box.innerHTML = html;
+    box.querySelectorAll('.del').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const code = btn.closest('.cart-item').dataset.code;
+        selected.delete(code);
+        updateCart();
+        // обновим галочку в списке
+        const el = document.querySelector(`.service[data-code="${CSS.escape(code)}"]`);
+        if (el){
+          el.classList.remove('selected');
+          const cb = el.querySelector('input[type=checkbox]');
+          if (cb) cb.checked = false;
+        }
+      });
+    });
+  }
+
+  $('pickedCount').textContent = selected.size;
+  $('positions').value = selected.size;
+
+  // Суммы
+  let sum = 0, hasRequest = false;
+  for (const s of selected.values()){
+    if (s.price === null) hasRequest = true;
+    else sum += s.price;
+  }
+  const discountPct = Math.min(100, Math.max(0, parseFloat($('discount').value) || 0));
+  const discountVal = sum * discountPct / 100;
+  const grand = sum - discountVal;
+
+  $('sumTotal').textContent = formatMoney(sum) + (hasRequest ? ' + по запросу' : '');
+  $('discountValue').textContent = `${discountPct}% (${formatMoney(discountVal)})`;
+  $('grandTotal').textContent = formatMoney(grand) + (hasRequest ? ' + по запросу' : '');
+}
+
+/* ---------- Экспорт в Excel ---------- */
+function exportToExcel(){
+  if (selected.size === 0){
+    showToast('Сначала выберите хотя бы одну услугу');
+    return;
+  }
+  const complexName = $('complexName').value.trim() || 'Комплекс медицинских услуг';
+  const discountPct = Math.min(100, Math.max(0, parseFloat($('discount').value) || 0));
+
+  let sum = 0, hasRequest = false;
+  const rows = [];
+  for (const s of selected.values()){
+    rows.push([s.code, s.name, s.price === null ? 'по запросу' : s.price]);
+    if (s.price === null) hasRequest = true;
+    else sum += s.price;
+  }
+  const discountVal = sum * discountPct / 100;
+  const grand = sum - discountVal;
+
+  // Собираем лист вручную через array-of-arrays
+  const aoa = [];
+  aoa.push([complexName]);
+  aoa.push([]);
+  aoa.push(['Код', 'Наименование услуги', 'Стоимость, руб.']);
+  for (const r of rows) aoa.push(r);
+  aoa.push([]);
+  aoa.push(['', 'Сумма услуг', sum]);
+  aoa.push(['', `Скидка ${discountPct}%`, -discountVal]);
+  aoa.push(['', 'Стоимость с учетом скидки', grand]);
+  if (hasRequest) aoa.push(['', 'Примечание', 'Часть услуг — по запросу, уточняйте стоимость']);
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // Ширины колонок
+  ws['!cols'] = [{wch:18},{wch:80},{wch:16}];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Расчёт');
+
+  const safeName = complexName.replace(/[\\/:*?"<>|]/g,'_').slice(0,50);
+  const date = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `Расчёт_${safeName}_${date}.xlsx`);
+  showToast('Файл Excel сформирован');
+}
+
+/* ---------- Обработчики ---------- */
+document.addEventListener('DOMContentLoaded', ()=>{
+  $('search').addEventListener('input', e=>{
+    currentQuery = e.target.value;
+    renderServices();
+  });
+  $('clearSearch').addEventListener('click', ()=>{
+    $('search').value = '';
+    currentQuery = '';
+    renderServices();
+    $('search').focus();
+  });
+  $('discount').addEventListener('input', updateCart);
+  $('complexName').addEventListener('input', updateCart);
+  $('exportBtn').addEventListener('click', exportToExcel);
+  $('resetBtn').addEventListener('click', ()=>{
+    if (selected.size && !confirm('Удалить все выбранные услуги?')) return;
+    selected.clear();
+    $('complexName').value = '';
+    $('discount').value = 0;
+    renderServices();
+    updateCart();
+    showToast('Список очищен');
+  });
+
+  loadPrices();
+});
+</script>
+</body>
+</html>
