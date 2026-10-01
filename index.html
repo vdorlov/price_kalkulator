@@ -4,10 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Калькулятор медицинских услуг</title>
-
-<!-- SheetJS для чтения xlsx -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
 <style>
   :root{
     --med-blue:#0b4f8a;
@@ -16,9 +13,9 @@
     --med-light:#eaf4fb;
     --med-accent:#4fc3f7;
     --danger:#e74c3c;
-    --ok:#1abc9c;
     --shadow:0 6px 22px rgba(11,79,138,.12);
     --radius:14px;
+    --row-h:62px;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;font-family:'Segoe UI',Tahoma,sans-serif;color:#1c2b3a;background:#f4f8fc}
@@ -30,210 +27,239 @@
     min-height:100vh;
   }
 
-  /* ===== Шапка ===== */
   header{
     background:linear-gradient(135deg,var(--med-blue) 0%, var(--med-blue-dark) 100%);
-    color:#fff;padding:26px 40px;position:relative;overflow:hidden;
+    color:#fff;padding:22px 40px;position:relative;overflow:hidden;
     box-shadow:var(--shadow);
   }
   header::after{
     content:"";position:absolute;right:-40px;top:-40px;width:220px;height:220px;
     border-radius:50%;background:rgba(79,195,247,.18);
   }
-  header::before{
-    content:"";position:absolute;right:60px;bottom:-60px;width:120px;height:120px;
-    border-radius:50%;background:rgba(18,163,163,.25);
-  }
-  header h1{margin:0;font-size:26px;letter-spacing:.5px;display:flex;align-items:center;gap:14px}
+  header h1{margin:0;font-size:24px;letter-spacing:.5px;display:flex;align-items:center;gap:14px}
   header .cross{
-    width:38px;height:38px;background:#fff;border-radius:9px;position:relative;flex:0 0 auto;
+    width:34px;height:34px;background:#fff;border-radius:9px;position:relative;flex:0 0 auto;
     box-shadow:0 0 0 4px rgba(255,255,255,.25);
   }
-  header .cross::before,header .cross::after{
-    content:"";position:absolute;background:var(--med-blue);border-radius:2px;
-  }
-  header .cross::before{width:8px;height:26px;left:15px;top:6px}
-  header .cross::after{width:26px;height:8px;left:6px;top:15px}
-  header p{margin:6px 0 0;opacity:.85;font-size:14px}
+  header .cross::before,header .cross::after{content:"";position:absolute;background:var(--med-blue);border-radius:2px}
+  header .cross::before{width:7px;height:22px;left:13px;top:6px}
+  header .cross::after{width:22px;height:7px;left:6px;top:13px}
+  header p{margin:6px 0 0;opacity:.85;font-size:13px}
 
-  /* ===== Основной layout ===== */
   .layout{
-    display:grid;grid-template-columns:1.4fr 1fr;gap:22px;
-    max-width:1400px;margin:26px auto;padding:0 22px;
+    display:grid;grid-template-columns:1.5fr 1fr;gap:20px;
+    max-width:1500px;margin:20px auto;padding:0 20px;
   }
-  @media(max-width:980px){.layout{grid-template-columns:1fr}}
+  @media(max-width:1050px){.layout{grid-template-columns:1fr}}
 
   .panel{
     background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
     overflow:hidden;border:1px solid #dceaf5;
+    display:flex;flex-direction:column;
+    height:calc(100vh - 140px);min-height:520px;
   }
   .panel-head{
     background:linear-gradient(90deg,#f0f7fd,#ffffff);
-    padding:16px 20px;border-bottom:1px solid #e2eef7;
-    display:flex;align-items:center;gap:10px;
-    font-weight:600;color:var(--med-blue-dark);font-size:16px;
+    padding:14px 18px;border-bottom:1px solid #e2eef7;
+    display:flex;align-items:center;gap:10px;justify-content:space-between;
+    font-weight:600;color:var(--med-blue-dark);font-size:15px;flex:0 0 auto;
   }
   .panel-head .dot{
     width:10px;height:10px;border-radius:50%;background:var(--med-teal);
     box-shadow:0 0 0 4px rgba(18,163,163,.18);
   }
+  .panel-head .left{display:flex;align-items:center;gap:10px}
 
-  /* ===== Поиск ===== */
-  .search-wrap{padding:16px 20px 4px;position:sticky;top:0;background:#fff;z-index:5}
-  .search-box{position:relative}
+  /* Фильтры */
+  .filters{
+    padding:12px 18px;background:#fbfdff;border-bottom:1px solid #e8f1f8;
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:0 0 auto;
+  }
+  .filters .search-box{grid-column:1 / -1;position:relative}
+  .filters select{
+    width:100%;padding:10px 12px;border:2px solid #d9e7f2;border-radius:10px;
+    background:#fff;font-size:13.5px;outline:none;cursor:pointer;
+    transition:.2s;color:#1c2b3a;
+  }
+  .filters select:focus{border-color:var(--med-accent);box-shadow:0 0 0 4px rgba(79,195,247,.15)}
   .search-box input{
-    width:100%;padding:14px 46px 14px 44px;font-size:15px;
+    width:100%;padding:13px 90px 13px 44px;font-size:14.5px;
     border:2px solid #d9e7f2;border-radius:12px;outline:none;
     transition:.25s;background:#fbfdff;
   }
   .search-box input:focus{
-    border-color:var(--med-accent);
-    box-shadow:0 0 0 4px rgba(79,195,247,.18);
-    background:#fff;
+    border-color:var(--med-accent);box-shadow:0 0 0 4px rgba(79,195,247,.18);background:#fff;
   }
   .search-box .icon{
     position:absolute;left:14px;top:50%;transform:translateY(-50%);
-    color:var(--med-blue);opacity:.7;font-size:17px;
+    color:var(--med-blue);opacity:.7;font-size:16px;pointer-events:none;
   }
   .search-box .clear{
-    position:absolute;right:10px;top:50%;transform:translateY(-50%);
+    position:absolute;right:8px;top:50%;transform:translateY(-50%);
     border:none;background:#eaf4fb;color:var(--med-blue);
-    width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;
-    transition:.2s;
+    width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:14px;transition:.2s;
   }
   .search-box .clear:hover{background:var(--med-blue);color:#fff;transform:translateY(-50%) rotate(90deg)}
-  .search-meta{padding:8px 20px 12px;font-size:13px;color:#678;display:flex;justify-content:space-between}
+  .search-box .counter{
+    position:absolute;right:42px;top:50%;transform:translateY(-50%);
+    font-size:11.5px;color:#7d95aa;font-weight:600;background:#eef7fd;
+    padding:3px 8px;border-radius:12px;pointer-events:none;
+  }
+
+  .meta{
+    padding:8px 18px;font-size:12.5px;color:#678;
+    display:flex;justify-content:space-between;align-items:center;
+    border-bottom:1px solid #eef7fd;flex:0 0 auto;
+  }
   .chip{
     background:var(--med-light);color:var(--med-blue);padding:3px 10px;border-radius:20px;
-    font-size:12px;font-weight:600;
+    font-size:11.5px;font-weight:600;
   }
+  .chip.teal{background:#e6fbf8;color:#0d8b8b}
 
-  /* ===== Список услуг ===== */
-  .services{max-height:600px;overflow-y:auto;padding:0 12px 16px}
-  .services::-webkit-scrollbar{width:8px}
-  .services::-webkit-scrollbar-thumb{background:#c4dcef;border-radius:4px}
-  .services::-webkit-scrollbar-thumb:hover{background:var(--med-accent)}
-
-  .group-title{
-    margin:14px 8px 6px;font-size:12px;font-weight:700;letter-spacing:.6px;
-    text-transform:uppercase;color:var(--med-teal);
-    border-left:3px solid var(--med-teal);padding-left:8px;
+  /* ============ ВИРТУАЛЬНЫЙ СПИСОК ============ */
+  .vlist-wrap{
+    flex:1 1 auto;overflow-y:auto;overflow-x:hidden;position:relative;
+    background:#fff;
   }
+  .vlist-wrap::-webkit-scrollbar{width:10px}
+  .vlist-wrap::-webkit-scrollbar-track{background:#f4f8fc}
+  .vlist-wrap::-webkit-scrollbar-thumb{background:#c4dcef;border-radius:5px;border:2px solid #f4f8fc}
+  .vlist-wrap::-webkit-scrollbar-thumb:hover{background:var(--med-accent)}
+
+  .vlist-spacer{position:relative;width:100%}
+
   .service{
+    position:absolute;left:0;right:0;
     display:flex;align-items:flex-start;gap:12px;
-    padding:12px 14px;margin:6px 4px;border-radius:10px;
-    border:1px solid #e8f1f8;background:#fff;cursor:pointer;
-    transition:all .22s cubic-bezier(.2,.7,.3,1);position:relative;
+    padding:10px 18px;height:var(--row-h);
+    border-bottom:1px solid #f0f6fb;background:#fff;cursor:pointer;
+    transition:background .18s, box-shadow .18s;
+    will-change:transform;
+    overflow:hidden;
   }
   .service:hover{
-    transform:translateY(-2px);
-    border-color:var(--med-accent);
-    box-shadow:0 8px 18px rgba(79,195,247,.18);
     background:linear-gradient(90deg,#f7fcff,#ffffff);
+    box-shadow:inset 4px 0 0 var(--med-accent);
+    z-index:2;
   }
   .service.selected{
-    border-color:var(--med-teal);
     background:linear-gradient(90deg,#e9fbf8,#ffffff);
-  }
-  .service.selected::before{
-    content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
-    background:var(--med-teal);border-radius:10px 0 0 10px;
+    box-shadow:inset 4px 0 0 var(--med-teal);
   }
   .service input[type=checkbox]{
-    appearance:none;width:22px;height:22px;flex:0 0 auto;margin-top:2px;
+    appearance:none;width:20px;height:20px;flex:0 0 auto;margin-top:3px;
     border:2px solid #b9d3e6;border-radius:6px;cursor:pointer;position:relative;
     transition:.2s;background:#fff;
   }
-  .service input[type=checkbox]:hover{border-color:var(--med-accent)}
+  .service:hover input[type=checkbox]{border-color:var(--med-accent)}
   .service input[type=checkbox]:checked{
     background:var(--med-teal);border-color:var(--med-teal);
-    transform:scale(1.08);
   }
   .service input[type=checkbox]:checked::after{
-    content:"✓";position:absolute;color:#fff;font-size:15px;font-weight:bold;
-    left:3px;top:-2px;
+    content:"✓";position:absolute;color:#fff;font-size:14px;font-weight:bold;
+    left:2px;top:-3px;
   }
-  .service-body{flex:1;min-width:0}
-  .service-name{font-size:14px;line-height:1.35;color:#1c2b3a}
-  .service-code{font-size:11px;color:#8aa2b8;margin-top:3px;font-family:monospace}
+  .service-body{flex:1;min-width:0;overflow:hidden}
+  .service-name{
+    font-size:13.5px;line-height:1.3;color:#1c2b3a;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+    overflow:hidden;text-overflow:ellipsis;
+  }
+  .service-code{font-size:10.5px;color:#8aa2b8;font-family:monospace;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .service-tag{
+    display:inline-block;font-size:10px;padding:1px 6px;border-radius:8px;
+    background:#eef7fd;color:#4a6d8c;margin-left:6px;font-weight:600;
+  }
   .service-price{
     font-weight:700;color:var(--med-blue);white-space:nowrap;
-    font-size:14px;margin-left:6px;
+    font-size:13.5px;margin-left:6px;align-self:center;
   }
 
-  /* ===== Корзина ===== */
-  .cart{padding:16px 20px;display:flex;flex-direction:column;gap:14px}
-  .field{display:flex;flex-direction:column;gap:6px}
-  .field label{font-size:13px;font-weight:600;color:#3a556b}
+  /* Заголовок группы как строка виртуального списка */
+  .group-row{
+    position:absolute;left:0;right:0;height:34px;
+    display:flex;align-items:center;padding:0 18px;
+    background:linear-gradient(90deg,#eaf4fb,#fbfdff);
+    border-top:1px solid #dceaf5;border-bottom:1px solid #dceaf5;
+    font-size:11.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+    color:var(--med-teal);
+  }
+  .group-row .sub{color:#678;font-weight:600;text-transform:none;letter-spacing:0;font-size:11px;margin-left:8px}
+
+  /* ============ КОРЗИНА ============ */
+  .cart{padding:14px 18px;display:flex;flex-direction:column;gap:12px;flex:1 1 auto;overflow:hidden}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:12.5px;font-weight:600;color:#3a556b}
   .field input{
-    padding:11px 13px;border:2px solid #d9e7f2;border-radius:10px;font-size:14px;
-    outline:none;transition:.2s;background:#fbfdff;
+    padding:10px 12px;border:2px solid #d9e7f2;border-radius:10px;font-size:13.5px;
+    outline:none;transition:.2s;background:#fbfdff;font-family:inherit;
   }
-  .field input:focus{
-    border-color:var(--med-accent);box-shadow:0 0 0 4px rgba(79,195,247,.15);background:#fff;
-  }
-  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field input:focus{border-color:var(--med-accent);box-shadow:0 0 0 4px rgba(79,195,247,.15);background:#fff}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-  .cart-items{max-height:340px;overflow-y:auto;border:1px dashed #d2e2ee;border-radius:10px;padding:8px;background:#fbfdff}
+  .cart-items{
+    flex:1 1 auto;overflow-y:auto;border:1px dashed #d2e2ee;border-radius:10px;
+    padding:6px;background:#fbfdff;min-height:100px;
+  }
   .cart-items::-webkit-scrollbar{width:6px}
   .cart-items::-webkit-scrollbar-thumb{background:#c4dcef;border-radius:3px}
-  .empty{color:#9bb0c2;text-align:center;padding:26px 10px;font-size:14px}
+  .empty{color:#9bb0c2;text-align:center;padding:26px 10px;font-size:13px}
   .cart-item{
-    display:flex;justify-content:space-between;gap:10px;align-items:flex-start;
-    padding:9px 10px;border-radius:8px;font-size:13px;
+    display:flex;justify-content:space-between;gap:8px;align-items:flex-start;
+    padding:8px 9px;border-radius:8px;font-size:12.5px;
     transition:.2s;border:1px solid transparent;
   }
   .cart-item:hover{background:#eef7fd;border-color:#d5e8f5}
   .cart-item .info{flex:1;min-width:0}
-  .cart-item .name{line-height:1.3}
-  .cart-item .code{font-size:10.5px;color:#8aa2b8;font-family:monospace}
-  .cart-item .price{font-weight:700;color:var(--med-blue);white-space:nowrap}
+  .cart-item .name{line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .cart-item .code{font-size:10px;color:#8aa2b8;font-family:monospace;margin-top:1px}
+  .cart-item .price{font-weight:700;color:var(--med-blue);white-space:nowrap;font-size:12.5px}
   .cart-item .del{
-    border:none;background:transparent;color:#c0cedd;cursor:pointer;font-size:15px;
-    padding:0 2px;transition:.2s;
+    border:none;background:transparent;color:#c0cedd;cursor:pointer;font-size:14px;
+    padding:0 2px;transition:.2s;flex:0 0 auto;
   }
   .cart-item .del:hover{color:var(--danger);transform:scale(1.2)}
 
   .totals{
-    background:linear-gradient(135deg,#f0f8ff,#e6f4ff);border-radius:12px;padding:14px 16px;
-    border:1px solid #d3e8f7;
+    background:linear-gradient(135deg,#f0f8ff,#e6f4ff);border-radius:12px;padding:12px 15px;
+    border:1px solid #d3e8f7;flex:0 0 auto;
   }
-  .totals .line{display:flex;justify-content:space-between;padding:5px 0;font-size:14px}
+  .totals .line{display:flex;justify-content:space-between;padding:4px 0;font-size:13.5px}
   .totals .line.total{
-    border-top:2px dashed #b9d3e6;margin-top:8px;padding-top:12px;
-    font-size:19px;font-weight:800;color:var(--med-blue-dark);
+    border-top:2px dashed #b9d3e6;margin-top:6px;padding-top:10px;
+    font-size:18px;font-weight:800;color:var(--med-blue-dark);
   }
   .totals .line.discount{color:var(--danger);font-weight:600}
 
   .btn{
-    border:none;border-radius:11px;padding:14px;font-size:15px;font-weight:700;
-    cursor:pointer;transition:.25s;letter-spacing:.3px;
+    border:none;border-radius:11px;padding:12px;font-size:14px;font-weight:700;
+    cursor:pointer;transition:.25s;letter-spacing:.3px;font-family:inherit;
   }
   .btn-primary{
     background:linear-gradient(135deg,var(--med-teal),#0d8b8b);color:#fff;
     box-shadow:0 6px 16px rgba(18,163,163,.35);
   }
   .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(18,163,163,.45)}
-  .btn-primary:active{transform:translateY(0)}
-  .btn-danger{
-    background:#fdecea;color:var(--danger);border:1px solid #f6c8c2;
-  }
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .btn-danger{background:#fdecea;color:var(--danger);border:1px solid #f6c8c2}
   .btn-danger:hover{background:var(--danger);color:#fff}
 
-  /* ===== Модальное уведомление ===== */
   .toast{
     position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(120%);
-    background:var(--med-blue-dark);color:#fff;padding:13px 26px;border-radius:30px;
-    box-shadow:var(--shadow);font-size:14px;transition:.4s cubic-bezier(.2,.8,.3,1);z-index:99;
+    background:var(--med-blue-dark);color:#fff;padding:12px 24px;border-radius:30px;
+    box-shadow:var(--shadow);font-size:13.5px;transition:.4s cubic-bezier(.2,.8,.3,1);z-index:99;
   }
   .toast.show{transform:translateX(-50%) translateY(0)}
 
-  .loader{text-align:center;padding:40px;color:#7d95aa}
+  .loader{text-align:center;padding:50px 20px;color:#7d95aa;font-size:14px}
   .loader .spin{
-    width:34px;height:34px;border:4px solid #d9e7f2;border-top-color:var(--med-teal);
-    border-radius:50%;margin:0 auto 12px;animation:spin .9s linear infinite;
+    width:36px;height:36px;border:4px solid #d9e7f2;border-top-color:var(--med-teal);
+    border-radius:50%;margin:0 auto 14px;animation:spin .9s linear infinite;
   }
   @keyframes spin{to{transform:rotate(360deg)}}
+
+  .no-data{padding:50px 20px;text-align:center;color:#9bb0c2;font-size:14px}
 </style>
 </head>
 <body>
@@ -244,35 +270,46 @@
 </header>
 
 <div class="layout">
-  <!-- ЛЕВАЯ ПАНЕЛЬ: поиск + список -->
+  <!-- ЛЕВАЯ ПАНЕЛЬ -->
   <section class="panel">
-    <div class="panel-head"><span class="dot"></span>Каталог услуг</div>
-    <div class="search-wrap">
+    <div class="panel-head">
+      <div class="left"><span class="dot"></span>Каталог услуг</div>
+      <span class="chip" id="totalChip">—</span>
+    </div>
+
+    <div class="filters">
       <div class="search-box">
         <span class="icon">🔍</span>
         <input id="search" type="text" placeholder="Поиск по названию или коду услуги..." autocomplete="off">
+        <span class="counter" id="searchCounter"></span>
         <button class="clear" id="clearSearch" title="Очистить">✕</button>
       </div>
+      <select id="filterGroup"><option value="">Все разделы</option></select>
+      <select id="filterSubgroup"><option value="">Все подразделы</option></select>
     </div>
-    <div class="search-meta">
+
+    <div class="meta">
       <span>Найдено: <b id="foundCount">0</b></span>
-      <span class="chip">Выбрано: <b id="pickedCount">0</b></span>
+      <span class="chip teal">Выбрано: <b id="pickedCount">0</b></span>
     </div>
-    <div class="services" id="services">
+
+    <div class="vlist-wrap" id="vlistWrap">
       <div class="loader"><div class="spin"></div>Загрузка каталога услуг...</div>
     </div>
   </section>
 
-  <!-- ПРАВАЯ ПАНЕЛЬ: корзина -->
+  <!-- ПРАВАЯ ПАНЕЛЬ -->
   <section class="panel">
-    <div class="panel-head"><span class="dot" style="background:var(--med-accent)"></span>Собранный комплекс</div>
+    <div class="panel-head">
+      <div class="left"><span class="dot" style="background:var(--med-accent)"></span>Собранный комплекс</div>
+    </div>
     <div class="cart">
       <div class="field">
         <label>Название комплекса</label>
         <input id="complexName" type="text" placeholder="Например: Комплекс «Здоровое сердце»">
       </div>
 
-      <div class="field">
+      <div class="field" style="flex:1 1 auto;min-height:0">
         <label>Выбранные услуги</label>
         <div class="cart-items" id="cartItems">
           <div class="empty">Пока ничего не выбрано.<br>Отметьте услуги в каталоге слева.</div>
@@ -306,18 +343,35 @@
 
 <script>
 /* =====================================================================
-   Калькулятор медицинских услуг
-   Данные читаются из price_01.10.26.xlsx (лежит в корне репозитория)
+   Оптимизированный калькулятор для ~5000+ услуг
+   - Виртуальный скролл (рендерим только видимые строки)
+   - Дебаунс поиска
+   - Фильтры по разделам/подразделам
+   - Делегирование событий
    ===================================================================== */
 
 const XLSX_FILE = 'price_01.10.26.xlsx';
-
-// Поля состояния
-let allServices = [];        // {code, name, price, group, subgroup}
-let selected = new Map();    // code -> service  (Map сохраняет порядок добавления)
-let currentQuery = '';
+const ROW_H_SERVICE = 62;   // высота строки услуги (px) — должна совпадать с CSS var --row-h
+const ROW_H_GROUP   = 34;   // высота заголовка группы
+const BUFFER_ROWS   = 6;    // сколько строк отрисовывать сверх видимой области
+const DEBOUNCE_MS   = 180;
 
 const $ = id => document.getElementById(id);
+
+/* ---------- Состояние ---------- */
+let allServices = [];              // {code,name,price,group,subgroup, _search}
+let servicesByCode = new Map();    // code -> service
+let selected = new Map();          // code -> service (порядок добавления сохраняется)
+let filteredItems = [];            // массив {type:'group'|'service', ...} — плоский список с заголовками
+let itemOffsets = [];              // предрассчитанные Y-координаты для каждого элемента
+let totalHeight = 0;
+
+let currentQuery = '';
+let currentGroup = '';
+let currentSubgroup = '';
+
+let wrapEl, spacerEl;
+let rafPending = false;
 
 /* ---------- Утилиты ---------- */
 function parsePrice(raw){
@@ -325,9 +379,7 @@ function parsePrice(raw){
   if (typeof raw === 'number') return raw;
   const s = String(raw).trim();
   if (!s || /по\s*запросу/i.test(s)) return null;
-  // убираем пробелы, неразрывные пробелы, ₽, "руб." и т.п.
   const cleaned = s.replace(/[^\d.,]/g,'').replace(/\s/g,'');
-  // если запятая как десятичный разделитель и точка как тысячный — нормализуем
   let normalized = cleaned;
   if (cleaned.includes(',') && cleaned.includes('.')){
     normalized = cleaned.replace(/\./g,'').replace(',', '.');
@@ -337,26 +389,26 @@ function parsePrice(raw){
   const n = parseFloat(normalized);
   return isNaN(n) ? null : n;
 }
-
 function formatMoney(n){
   if (n === null || n === undefined || isNaN(n)) return 'по запросу';
   return n.toLocaleString('ru-RU') + ' ₽';
 }
-
-function formatNumber(n){
-  return (Math.round(n * 100) / 100).toLocaleString('ru-RU');
-}
-
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
-
 function showToast(msg){
   const t = $('toast');
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(t._tid);
-  t._tid = setTimeout(()=>t.classList.remove('show'), 2600);
+  t._tid = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+function debounce(fn, ms){
+  let tid;
+  return function(...args){
+    clearTimeout(tid);
+    tid = setTimeout(()=>fn.apply(this,args), ms);
+  };
 }
 
 /* ---------- Загрузка xlsx ---------- */
@@ -369,8 +421,7 @@ async function loadPrices(){
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
 
-    // Определяем индексы колонок из первой строки-заголовка
-    // Ожидаем: Код | Наименование услуги | Стоимость, руб.
+    // Заголовок
     let headerRow = 0;
     for (let i=0;i<Math.min(rows.length,5);i++){
       const r = rows[i].map(x=>String(x).toLowerCase());
@@ -386,7 +437,12 @@ async function loadPrices(){
     if (colName < 0) colName = 1;
     if (colPrice < 0) colPrice = 2;
 
-    let lastGroup = '';
+    const subMarkers = ['стандартные','консультации','телеконсультации','прочие','помощь на дому',
+                        'манипуляции','обследования','оперативные','анестезия','вакцинация',
+                        'компоненты крови','гемотрансфузия','лечение с использованием',
+                        'комплексы услуг','радиоволновое удаление','picc'];
+
+    let lastGroup = 'Прочее';
     let lastSubgroup = '';
     const list = [];
 
@@ -397,165 +453,256 @@ async function loadPrices(){
       const name = String(row[colName] ?? '').trim();
       const rawPrice = row[colPrice];
 
-      // Пустая строка с одним текстом в колонке B -> это заголовок группы
       if (!code && name && (rawPrice === '' || rawPrice === undefined)){
-        // Раздел или подраздел: если уже была подгруппа или это первый заголовок
-        // Простая эвристика: если название начинается с заглавной и не содержит
-        // типовых префиксов "Стандартные", "Консультации", "Телеконсультации",
-        // "Манипуляции", "Обследования" и т.п. — считаем это новой большой группой.
-        const subMarkers = ['стандартные','консультации','телеконсультации','прочие','помощь на дому',
-                            'манипуляции','обследования','оперативные','анестезия','вакцинация',
-                            'компоненты крови','гемотрансфузия','лечение с использованием',
-                            'комплексы услуг','радиоволновое удаление','picc','анестезиология'];
-        const isSub = subMarkers.some(m => name.toLowerCase().startsWith(m));
-        if (isSub){
-          lastSubgroup = name;
-        } else {
-          lastGroup = name;
-          lastSubgroup = '';
-        }
+        const lower = name.toLowerCase();
+        const isSub = subMarkers.some(m => lower.startsWith(m));
+        if (isSub) lastSubgroup = name;
+        else { lastGroup = name; lastSubgroup = ''; }
         continue;
       }
 
-      // Строка с услугой
       if (code && name){
         const price = parsePrice(rawPrice);
-        list.push({
-          code,
-          name,
-          price,
-          group: lastGroup || 'Прочее',
-          subgroup: lastSubgroup || ''
-        });
+        const svc = {
+          code, name, price,
+          group: lastGroup,
+          subgroup: lastSubgroup,
+          _search: (code + ' ' + name).toLowerCase()
+        };
+        list.push(svc);
       }
     }
 
     allServices = list;
-    $('services').innerHTML = '';
-    renderServices();
+    servicesByCode.clear();
+    for (const s of list) servicesByCode.set(s.code, s);
+
+    $('totalChip').textContent = 'Всего: ' + list.length.toLocaleString('ru-RU') + ' услуг';
+
+    buildFilterOptions();
+    applyFiltersAndRender();
     updateCart();
+
   }catch(err){
     console.error(err);
-    $('services').innerHTML =
-      `<div class="loader" style="color:#c0392b">
-        ⚠ Не удалось загрузить файл <b>${XLSX_FILE}</b>.<br>
-        <small>Убедитесь, что он лежит рядом с index.html и открываете сайт через сервер (а не file://).</small>
+    $('vlistWrap').innerHTML =
+      `<div class="no-data" style="color:#c0392b">
+        ⚠ Не удалось загрузить файл <b>${XLSX_FILE}</b>.<br><br>
+        Убедитесь, что он лежит рядом с index.html и открываете сайт через сервер (не file://).
       </div>`;
   }
 }
 
-/* ---------- Отрисовка списка услуг ---------- */
-function renderServices(){
+/* ---------- Построение выпадающих фильтров ---------- */
+function buildFilterOptions(){
+  const groups = new Set();
+  for (const s of allServices) groups.add(s.group);
+
+  const gSel = $('filterGroup');
+  // сортируем: русский алфавит
+  const sortedGroups = Array.from(groups).sort((a,b)=>a.localeCompare(b,'ru'));
+  gSel.innerHTML = '<option value="">Все разделы</option>' +
+    sortedGroups.map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
+}
+
+function rebuildSubgroups(){
+  const subSel = $('filterSubgroup');
+  const subs = new Set();
+  for (const s of allServices){
+    if (currentGroup && s.group !== currentGroup) continue;
+    if (s.subgroup) subs.add(s.subgroup);
+  }
+  const sorted = Array.from(subs).sort((a,b)=>a.localeCompare(b,'ru'));
+  const prev = currentSubgroup;
+  subSel.innerHTML = '<option value="">Все подразделы</option>' +
+    sorted.map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
+  // восстановить выбор, если подраздел ещё существует
+  if (prev && sorted.includes(prev)) subSel.value = prev;
+  else { subSel.value = ''; currentSubgroup = ''; }
+}
+
+/* ---------- Фильтрация + подготовка плоского списка ---------- */
+function applyFiltersAndRender(){
   const q = currentQuery.trim().toLowerCase();
-  const container = $('services');
-  container.innerHTML = '';
 
-  // Фильтр: если запрос пустой — показываем ВСЕ услуги
-  const filtered = !q ? allServices : allServices.filter(s =>
-    s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
-  );
+  let items = allServices;
+  if (currentGroup)    items = items.filter(s => s.group === currentGroup);
+  if (currentSubgroup) items = items.filter(s => s.subgroup === currentSubgroup);
+  if (q)               items = items.filter(s => s._search.includes(q));
 
-  $('foundCount').textContent = filtered.length;
+  $('foundCount').textContent = items.length.toLocaleString('ru-RU');
+  $('searchCounter').textContent = q ? items.length.toLocaleString('ru-RU') : '';
 
-  if (filtered.length === 0){
-    container.innerHTML = '<div class="empty">По вашему запросу ничего не найдено.</div>';
+  // Формируем плоский список с заголовками групп.
+  // Заголовок группы вставляем, когда group или subgroup меняется.
+  // Если группа/подгруппа одна — заголовки не нужны (или нужен один).
+  const flat = [];
+  let lastGroupSeen = null, lastSubSeen = null;
+  const manyGroups = new Set(items.map(s=>s.group)).size > 1;
+
+  for (const s of items){
+    if (manyGroups){
+      if (s.group !== lastGroupSeen){
+        flat.push({type:'group', group:s.group, subgroup:s.subgroup || ''});
+        lastGroupSeen = s.group;
+        lastSubSeen = s.subgroup || '';
+      } else if ((s.subgroup||'') !== lastSubSeen){
+        flat.push({type:'subgroup', group:s.group, subgroup:s.subgroup || ''});
+        lastSubSeen = s.subgroup || '';
+      }
+    }
+    flat.push({type:'service', svc:s});
+  }
+
+  filteredItems = flat;
+
+  // Пересчитываем смещения и общую высоту
+  itemOffsets = new Array(flat.length);
+  let y = 0;
+  for (let i=0;i<flat.length;i++){
+    itemOffsets[i] = y;
+    y += flat[i].type === 'service' ? ROW_H_SERVICE : ROW_H_GROUP;
+  }
+  totalHeight = y;
+
+  // Обновляем DOM-структуру виртуального списка
+  const wrap = wrapEl;
+  const scrollTop = wrap.scrollTop;
+  const oldSpacer = spacerEl;
+  const spacer = document.createElement('div');
+  spacer.className = 'vlist-spacer';
+  spacer.style.height = totalHeight + 'px';
+  if (oldSpacer) wrap.replaceChild(spacer, oldSpacer);
+  else { wrap.innerHTML = ''; wrap.appendChild(spacer); }
+  spacerEl = spacer;
+
+  if (flat.length === 0){
+    spacer.innerHTML = '<div class="no-data">По вашему запросу ничего не найдено.</div>';
+    spacer.style.height = 'auto';
     return;
   }
 
-  // Группировка: group -> subgroup -> services
-  const grouped = new Map();
-  for (const s of filtered){
-    const g = s.group || 'Прочее';
-    const sg = s.subgroup || '';
-    if (!grouped.has(g)) grouped.set(g, new Map());
-    const sub = grouped.get(g);
-    if (!sub.has(sg)) sub.set(sg, []);
-    sub.get(sg).push(s);
-  }
+  renderVisible();
+  // Восстанавливаем скролл, если был (например, при изменении фильтра — оставляем вверху)
+  if (scrollTop > totalHeight) wrap.scrollTop = 0;
+}
 
-  let html = '';
-  for (const [group, subs] of grouped){
-    html += `<div class="group-title">${escapeHtml(group)}</div>`;
-    for (const [sub, items] of subs){
-      if (sub){
-        html += `<div class="group-title" style="color:#678;border-color:#cfdbe6;font-size:11px">${escapeHtml(sub)}</div>`;
-      }
-      for (const s of items){
-        const checked = selected.has(s.code) ? 'checked' : '';
-        const selCls = selected.has(s.code) ? 'selected' : '';
-        html += `
-          <label class="service ${selCls}" data-code="${escapeHtml(s.code)}">
-            <input type="checkbox" ${checked}>
-            <div class="service-body">
-              <div class="service-name">${escapeHtml(s.name)}</div>
-              <div class="service-code">${escapeHtml(s.code)}</div>
-            </div>
-            <div class="service-price">${formatMoney(s.price)}</div>
-          </label>`;
+/* ---------- Виртуальный скролл ---------- */
+function renderVisible(){
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(()=>{
+    rafPending = false;
+    const wrap = wrapEl;
+    if (!wrap || !spacerEl) return;
+
+    const scrollTop = wrap.scrollTop;
+    const viewH = wrap.clientHeight;
+
+    // Бинарный поиск первого видимого элемента
+    let lo = 0, hi = itemOffsets.length - 1, startIdx = 0;
+    while (lo <= hi){
+      const mid = (lo+hi) >> 1;
+      const top = itemOffsets[mid];
+      const h = filteredItems[mid].type === 'service' ? ROW_H_SERVICE : ROW_H_GROUP;
+      if (top + h >= scrollTop) { startIdx = mid; hi = mid - 1; }
+      else lo = mid + 1;
+    }
+    // немного вверх для буфера
+    startIdx = Math.max(0, startIdx - BUFFER_ROWS);
+
+    // Ищем последний видимый
+    let endIdx = startIdx;
+    while (endIdx < itemOffsets.length && itemOffsets[endIdx] < scrollTop + viewH){
+      endIdx++;
+    }
+    endIdx = Math.min(itemOffsets.length - 1, endIdx + BUFFER_ROWS);
+
+    // Строим HTML
+    const parts = [];
+    for (let i = startIdx; i <= endIdx; i++){
+      const it = filteredItems[i];
+      const top = itemOffsets[i];
+      if (it.type === 'service'){
+        const s = it.svc;
+        const isSel = selected.has(s.code);
+        parts.push(
+          `<div class="service${isSel?' selected':''}" data-code="${escapeHtml(s.code)}" data-idx="${i}" style="top:${top}px">` +
+            `<input type="checkbox" ${isSel?'checked':''} tabindex="-1">` +
+            `<div class="service-body">` +
+              `<div class="service-name">${escapeHtml(s.name)}</div>` +
+              `<div class="service-code">${escapeHtml(s.code)}` +
+                (s.subgroup && currentGroup ? `<span class="service-tag">${escapeHtml(s.subgroup)}</span>` : '') +
+              `</div>` +
+            `</div>` +
+            `<div class="service-price">${formatMoney(s.price)}</div>` +
+          `</div>`
+        );
+      } else {
+        const label = it.type === 'group' ? it.group : it.subgroup;
+        const cls = it.type === 'group' ? 'group-row' : 'group-row';
+        const subHtml = (it.type === 'group' && it.subgroup)
+          ? `<span class="sub">${escapeHtml(it.subgroup)}</span>` : '';
+        parts.push(`<div class="${cls}" style="top:${top}px;${it.type==='subgroup'?'background:linear-gradient(90deg,#f3f9fe,#fbfdff);font-size:11px;color:#678;border-top:none;':''}">${escapeHtml(label)}${subHtml}</div>`);
       }
     }
-  }
-  container.innerHTML = html;
-
-  // Навешиваем обработчики
-  container.querySelectorAll('.service').forEach(el=>{
-    const cb = el.querySelector('input[type=checkbox]');
-    const code = el.dataset.code;
-    const toggle = () => {
-      const svc = allServices.find(x=>x.code === code);
-      if (!svc) return;
-      if (selected.has(code)) selected.delete(code);
-      else selected.set(code, svc);
-      el.classList.toggle('selected', selected.has(code));
-      updateCart();
-    };
-    el.addEventListener('click', e => {
-      // клик по label не должен дважды срабатывать: чекбокс сам вызовет change
-      if (e.target.tagName !== 'INPUT') { e.preventDefault(); cb.checked = !cb.checked; toggle(); }
-    });
-    cb.addEventListener('change', toggle);
+    spacerEl.innerHTML = parts.join('');
   });
 }
 
-/* ---------- Отрисовка корзины и итогов ---------- */
+/* ---------- Обновление одной строки после toggle (без полного рендера) ---------- */
+function refreshRowVisual(code){
+  if (!spacerEl) return;
+  const row = spacerEl.querySelector(`.service[data-code="${CSS.escape(code)}"]`);
+  if (!row) return;
+  const isSel = selected.has(code);
+  row.classList.toggle('selected', isSel);
+  const cb = row.querySelector('input[type=checkbox]');
+  if (cb) cb.checked = isSel;
+}
+
+/* ---------- Обработчики виртуального списка (делегирование) ---------- */
+function attachListHandlers(){
+  wrapEl.addEventListener('scroll', renderVisible, {passive:true});
+  wrapEl.addEventListener('click', e => {
+    const row = e.target.closest('.service');
+    if (!row) return;
+    const code = row.dataset.code;
+    if (!code) return;
+    const svc = servicesByCode.get(code);
+    if (!svc) return;
+    if (selected.has(code)) selected.delete(code);
+    else selected.set(code, svc);
+    refreshRowVisual(code);
+    updateCart();
+  });
+}
+
+/* ---------- Корзина и итоги ---------- */
 function updateCart(){
   const box = $('cartItems');
   if (selected.size === 0){
     box.innerHTML = '<div class="empty">Пока ничего не выбрано.<br>Отметьте услуги в каталоге слева.</div>';
   } else {
-    let html = '';
+    const parts = [];
     for (const [code, s] of selected){
-      html += `
-        <div class="cart-item" data-code="${escapeHtml(code)}">
-          <div class="info">
-            <div class="name">${escapeHtml(s.name)}</div>
-            <div class="code">${escapeHtml(s.code)}</div>
-          </div>
-          <div class="price">${formatMoney(s.price)}</div>
-          <button class="del" title="Удалить">✕</button>
-        </div>`;
+      parts.push(
+        `<div class="cart-item" data-code="${escapeHtml(code)}">` +
+          `<div class="info">` +
+            `<div class="name">${escapeHtml(s.name)}</div>` +
+            `<div class="code">${escapeHtml(s.code)}</div>` +
+          `</div>` +
+          `<div class="price">${formatMoney(s.price)}</div>` +
+          `<button class="del" title="Удалить">✕</button>` +
+        `</div>`
+      );
     }
-    box.innerHTML = html;
-    box.querySelectorAll('.del').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const code = btn.closest('.cart-item').dataset.code;
-        selected.delete(code);
-        updateCart();
-        // обновим галочку в списке
-        const el = document.querySelector(`.service[data-code="${CSS.escape(code)}"]`);
-        if (el){
-          el.classList.remove('selected');
-          const cb = el.querySelector('input[type=checkbox]');
-          if (cb) cb.checked = false;
-        }
-      });
-    });
+    box.innerHTML = parts.join('');
   }
 
   $('pickedCount').textContent = selected.size;
   $('positions').value = selected.size;
 
-  // Суммы
   let sum = 0, hasRequest = false;
   for (const s of selected.values()){
     if (s.price === null) hasRequest = true;
@@ -572,29 +719,24 @@ function updateCart(){
 
 /* ---------- Экспорт в Excel ---------- */
 function exportToExcel(){
-  if (selected.size === 0){
-    showToast('Сначала выберите хотя бы одну услугу');
-    return;
-  }
+  if (selected.size === 0){ showToast('Сначала выберите хотя бы одну услугу'); return; }
   const complexName = $('complexName').value.trim() || 'Комплекс медицинских услуг';
   const discountPct = Math.min(100, Math.max(0, parseFloat($('discount').value) || 0));
 
   let sum = 0, hasRequest = false;
-  const rows = [];
+  const aoa = [];
+  aoa.push([complexName]);
+  aoa.push([]);
+  aoa.push(['Код', 'Наименование услуги', 'Стоимость, руб.']);
+
   for (const s of selected.values()){
-    rows.push([s.code, s.name, s.price === null ? 'по запросу' : s.price]);
+    aoa.push([s.code, s.name, s.price === null ? 'по запросу' : s.price]);
     if (s.price === null) hasRequest = true;
     else sum += s.price;
   }
   const discountVal = sum * discountPct / 100;
   const grand = sum - discountVal;
 
-  // Собираем лист вручную через array-of-arrays
-  const aoa = [];
-  aoa.push([complexName]);
-  aoa.push([]);
-  aoa.push(['Код', 'Наименование услуги', 'Стоимость, руб.']);
-  for (const r of rows) aoa.push(r);
   aoa.push([]);
   aoa.push(['', 'Сумма услуг', sum]);
   aoa.push(['', `Скидка ${discountPct}%`, -discountVal]);
@@ -602,10 +744,7 @@ function exportToExcel(){
   if (hasRequest) aoa.push(['', 'Примечание', 'Часть услуг — по запросу, уточняйте стоимость']);
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-
-  // Ширины колонок
   ws['!cols'] = [{wch:18},{wch:80},{wch:16}];
-
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Расчёт');
 
@@ -615,30 +754,73 @@ function exportToExcel(){
   showToast('Файл Excel сформирован');
 }
 
-/* ---------- Обработчики ---------- */
+/* ---------- Инициализация ---------- */
 document.addEventListener('DOMContentLoaded', ()=>{
-  $('search').addEventListener('input', e=>{
-    currentQuery = e.target.value;
-    renderServices();
-  });
+  wrapEl = $('vlistWrap');
+  spacerEl = null;
+
+  attachListHandlers();
+
+  // Поиск с дебаунсом
+  const onSearch = debounce(()=>{
+    currentQuery = $('search').value;
+    applyFiltersAndRender();
+  }, DEBOUNCE_MS);
+  $('search').addEventListener('input', onSearch);
+
   $('clearSearch').addEventListener('click', ()=>{
     $('search').value = '';
     currentQuery = '';
-    renderServices();
+    applyFiltersAndRender();
     $('search').focus();
   });
+
+  $('filterGroup').addEventListener('change', e=>{
+    currentGroup = e.target.value;
+    currentSubgroup = '';
+    rebuildSubgroups();
+    applyFiltersAndRender();
+    wrapEl.scrollTop = 0;
+  });
+  $('filterSubgroup').addEventListener('change', e=>{
+    currentSubgroup = e.target.value;
+    applyFiltersAndRender();
+    wrapEl.scrollTop = 0;
+  });
+
   $('discount').addEventListener('input', updateCart);
   $('complexName').addEventListener('input', updateCart);
   $('exportBtn').addEventListener('click', exportToExcel);
+
+  // Делегирование для корзины
+  $('cartItems').addEventListener('click', e=>{
+    const del = e.target.closest('.del');
+    if (!del) return;
+    const code = del.closest('.cart-item').dataset.code;
+    selected.delete(code);
+    refreshRowVisual(code);
+    updateCart();
+  });
+
   $('resetBtn').addEventListener('click', ()=>{
     if (selected.size && !confirm('Удалить все выбранные услуги?')) return;
     selected.clear();
     $('complexName').value = '';
     $('discount').value = 0;
-    renderServices();
     updateCart();
+    // обновим только видимые строки
+    if (spacerEl){
+      spacerEl.querySelectorAll('.service').forEach(row=>{
+        row.classList.remove('selected');
+        const cb = row.querySelector('input[type=checkbox]');
+        if (cb) cb.checked = false;
+      });
+    }
     showToast('Список очищен');
   });
+
+  // При изменении размера окна — пересчёт видимой области
+  window.addEventListener('resize', debounce(renderVisible, 100));
 
   loadPrices();
 });
