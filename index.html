@@ -75,13 +75,15 @@
     padding:12px 18px;background:#fbfdff;border-bottom:1px solid #e8f1f8;
     display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:0 0 auto;
   }
-  .filters .search-box{grid-column:1 / -1;position:relative}
+  .filters .search-box{grid-column:1 / -1}
+  .filters .btn-reset-filters{grid-column:1 / -1}
   .filters select{
     width:100%;padding:10px 12px;border:2px solid #d9e7f2;border-radius:10px;
     background:#fff;font-size:13.5px;outline:none;cursor:pointer;
     transition:.2s;color:#1c2b3a;
   }
   .filters select:focus{border-color:var(--med-accent);box-shadow:0 0 0 4px rgba(79,195,247,.15)}
+  .search-box{position:relative}
   .search-box input{
     width:100%;padding:13px 90px 13px 44px;font-size:14.5px;
     border:2px solid #d9e7f2;border-radius:12px;outline:none;
@@ -106,6 +108,53 @@
     padding:3px 8px;border-radius:12px;pointer-events:none;
   }
 
+  /* Кнопка «Сбросить фильтры» */
+  .btn-reset-filters{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    padding:10px 14px;border-radius:10px;border:2px solid #d9e7f2;
+    background:#fff;color:#3a556b;font-size:13.5px;font-weight:600;
+    cursor:pointer;font-family:inherit;
+    transition:all .22s cubic-bezier(.2,.7,.3,1);
+    position:relative;overflow:hidden;
+  }
+  .btn-reset-filters .rf-icon{
+    display:inline-block;font-size:16px;line-height:1;
+    transition:transform .45s cubic-bezier(.2,.7,.3,1);
+  }
+  .btn-reset-filters .rf-badge{
+    display:none;min-width:20px;height:20px;padding:0 6px;border-radius:10px;
+    background:var(--med-teal);color:#fff;font-size:11px;font-weight:700;
+    align-items:center;justify-content:center;
+  }
+  .btn-reset-filters:disabled{
+    opacity:.5;cursor:not-allowed;color:#9bb0c2;
+    border-color:#e8f1f8;background:#fbfdff;
+  }
+  .btn-reset-filters:not(:disabled):hover{
+    border-color:var(--med-accent);color:var(--med-blue);
+    background:linear-gradient(135deg,#f0f8ff,#ffffff);
+    box-shadow:0 6px 16px rgba(79,195,247,.2);
+    transform:translateY(-1px);
+  }
+  .btn-reset-filters:not(:disabled):hover .rf-icon{
+    transform:rotate(-180deg);
+  }
+  .btn-reset-filters:not(:disabled):active{
+    transform:translateY(0) scale(.98);
+  }
+  .btn-reset-filters:not(:disabled) .rf-badge{
+    display:inline-flex;
+  }
+
+  @keyframes rfPulse{
+    0%{box-shadow:0 0 0 0 rgba(18,163,163,.4)}
+    70%{box-shadow:0 0 0 10px rgba(18,163,163,0)}
+    100%{box-shadow:0 0 0 0 rgba(18,163,163,0)}
+  }
+  .btn-reset-filters.pulse{
+    animation:rfPulse .55s ease-out;
+  }
+
   .meta{
     padding:8px 18px;font-size:12.5px;color:#678;
     display:flex;justify-content:space-between;align-items:center;
@@ -117,7 +166,7 @@
   }
   .chip.teal{background:#e6fbf8;color:#0d8b8b}
 
-  /* ============ ВИРТУАЛЬНЫЙ СПИСОК ============ */
+  /* ВИРТУАЛЬНЫЙ СПИСОК */
   .vlist-wrap{
     flex:1 1 auto;overflow-y:auto;overflow-x:hidden;position:relative;
     background:#fff;
@@ -176,7 +225,6 @@
     font-size:13.5px;margin-left:6px;align-self:center;
   }
 
-  /* Заголовок группы как строка виртуального списка */
   .group-row{
     position:absolute;left:0;right:0;height:34px;
     display:flex;align-items:center;padding:0 18px;
@@ -187,7 +235,7 @@
   }
   .group-row .sub{color:#678;font-weight:600;text-transform:none;letter-spacing:0;font-size:11px;margin-left:8px}
 
-  /* ============ КОРЗИНА ============ */
+  /* КОРЗИНА */
   .cart{padding:14px 18px;display:flex;flex-direction:column;gap:12px;flex:1 1 auto;overflow:hidden}
   .field{display:flex;flex-direction:column;gap:5px}
   .field label{font-size:12.5px;font-weight:600;color:#3a556b}
@@ -282,10 +330,15 @@
         <span class="icon">🔍</span>
         <input id="search" type="text" placeholder="Поиск по названию или коду услуги..." autocomplete="off">
         <span class="counter" id="searchCounter"></span>
-        <button class="clear" id="clearSearch" title="Очистить">✕</button>
+        <button class="clear" id="clearSearch" title="Очистить поле поиска">✕</button>
       </div>
       <select id="filterGroup"><option value="">Все разделы</option></select>
       <select id="filterSubgroup"><option value="">Все подразделы</option></select>
+      <button class="btn-reset-filters" id="resetFilters" disabled title="Сбросить поиск и фильтры">
+        <span class="rf-icon">⟲</span>
+        <span>Сбросить фильтры</span>
+        <span class="rf-badge" id="rfBadge"></span>
+      </button>
     </div>
 
     <div class="meta">
@@ -347,11 +400,12 @@
    - Виртуальный скролл (рендерим только видимые строки)
    - Дебаунс поиска
    - Фильтры по разделам/подразделам
+   - Кнопка сброса всех фильтров и поиска
    - Делегирование событий
    ===================================================================== */
 
 const XLSX_FILE = 'price_01.10.26.xlsx';
-const ROW_H_SERVICE = 62;   // высота строки услуги (px) — должна совпадать с CSS var --row-h
+const ROW_H_SERVICE = 62;   // высота строки услуги (px) — совпадает с CSS var --row-h
 const ROW_H_GROUP   = 34;   // высота заголовка группы
 const BUFFER_ROWS   = 6;    // сколько строк отрисовывать сверх видимой области
 const DEBOUNCE_MS   = 180;
@@ -362,8 +416,8 @@ const $ = id => document.getElementById(id);
 let allServices = [];              // {code,name,price,group,subgroup, _search}
 let servicesByCode = new Map();    // code -> service
 let selected = new Map();          // code -> service (порядок добавления сохраняется)
-let filteredItems = [];            // массив {type:'group'|'service', ...} — плоский список с заголовками
-let itemOffsets = [];              // предрассчитанные Y-координаты для каждого элемента
+let filteredItems = [];            // массив {type:'group'|'subgroup'|'service', ...}
+let itemOffsets = [];              // предрассчитанные Y-координаты
 let totalHeight = 0;
 
 let currentQuery = '';
@@ -499,7 +553,6 @@ function buildFilterOptions(){
   for (const s of allServices) groups.add(s.group);
 
   const gSel = $('filterGroup');
-  // сортируем: русский алфавит
   const sortedGroups = Array.from(groups).sort((a,b)=>a.localeCompare(b,'ru'));
   gSel.innerHTML = '<option value="">Все разделы</option>' +
     sortedGroups.map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
@@ -516,7 +569,6 @@ function rebuildSubgroups(){
   const prev = currentSubgroup;
   subSel.innerHTML = '<option value="">Все подразделы</option>' +
     sorted.map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
-  // восстановить выбор, если подраздел ещё существует
   if (prev && sorted.includes(prev)) subSel.value = prev;
   else { subSel.value = ''; currentSubgroup = ''; }
 }
@@ -533,9 +585,6 @@ function applyFiltersAndRender(){
   $('foundCount').textContent = items.length.toLocaleString('ru-RU');
   $('searchCounter').textContent = q ? items.length.toLocaleString('ru-RU') : '';
 
-  // Формируем плоский список с заголовками групп.
-  // Заголовок группы вставляем, когда group или subgroup меняется.
-  // Если группа/подгруппа одна — заголовки не нужны (или нужен один).
   const flat = [];
   let lastGroupSeen = null, lastSubSeen = null;
   const manyGroups = new Set(items.map(s=>s.group)).size > 1;
@@ -556,7 +605,6 @@ function applyFiltersAndRender(){
 
   filteredItems = flat;
 
-  // Пересчитываем смещения и общую высоту
   itemOffsets = new Array(flat.length);
   let y = 0;
   for (let i=0;i<flat.length;i++){
@@ -565,7 +613,6 @@ function applyFiltersAndRender(){
   }
   totalHeight = y;
 
-  // Обновляем DOM-структуру виртуального списка
   const wrap = wrapEl;
   const scrollTop = wrap.scrollTop;
   const oldSpacer = spacerEl;
@@ -579,12 +626,14 @@ function applyFiltersAndRender(){
   if (flat.length === 0){
     spacer.innerHTML = '<div class="no-data">По вашему запросу ничего не найдено.</div>';
     spacer.style.height = 'auto';
+    updateResetButton();
     return;
   }
 
   renderVisible();
-  // Восстанавливаем скролл, если был (например, при изменении фильтра — оставляем вверху)
   if (scrollTop > totalHeight) wrap.scrollTop = 0;
+
+  updateResetButton();
 }
 
 /* ---------- Виртуальный скролл ---------- */
@@ -599,7 +648,6 @@ function renderVisible(){
     const scrollTop = wrap.scrollTop;
     const viewH = wrap.clientHeight;
 
-    // Бинарный поиск первого видимого элемента
     let lo = 0, hi = itemOffsets.length - 1, startIdx = 0;
     while (lo <= hi){
       const mid = (lo+hi) >> 1;
@@ -608,17 +656,14 @@ function renderVisible(){
       if (top + h >= scrollTop) { startIdx = mid; hi = mid - 1; }
       else lo = mid + 1;
     }
-    // немного вверх для буфера
     startIdx = Math.max(0, startIdx - BUFFER_ROWS);
 
-    // Ищем последний видимый
     let endIdx = startIdx;
     while (endIdx < itemOffsets.length && itemOffsets[endIdx] < scrollTop + viewH){
       endIdx++;
     }
     endIdx = Math.min(itemOffsets.length - 1, endIdx + BUFFER_ROWS);
 
-    // Строим HTML
     const parts = [];
     for (let i = startIdx; i <= endIdx; i++){
       const it = filteredItems[i];
@@ -640,17 +685,19 @@ function renderVisible(){
         );
       } else {
         const label = it.type === 'group' ? it.group : it.subgroup;
-        const cls = it.type === 'group' ? 'group-row' : 'group-row';
         const subHtml = (it.type === 'group' && it.subgroup)
           ? `<span class="sub">${escapeHtml(it.subgroup)}</span>` : '';
-        parts.push(`<div class="${cls}" style="top:${top}px;${it.type==='subgroup'?'background:linear-gradient(90deg,#f3f9fe,#fbfdff);font-size:11px;color:#678;border-top:none;':''}">${escapeHtml(label)}${subHtml}</div>`);
+        const extraStyle = it.type === 'subgroup'
+          ? 'background:linear-gradient(90deg,#f3f9fe,#fbfdff);font-size:11px;color:#678;border-top:none;'
+          : '';
+        parts.push(`<div class="group-row" style="top:${top}px;${extraStyle}">${escapeHtml(label)}${subHtml}</div>`);
       }
     }
     spacerEl.innerHTML = parts.join('');
   });
 }
 
-/* ---------- Обновление одной строки после toggle (без полного рендера) ---------- */
+/* ---------- Обновление одной строки после toggle ---------- */
 function refreshRowVisual(code){
   if (!spacerEl) return;
   const row = spacerEl.querySelector(`.service[data-code="${CSS.escape(code)}"]`);
@@ -661,7 +708,7 @@ function refreshRowVisual(code){
   if (cb) cb.checked = isSel;
 }
 
-/* ---------- Обработчики виртуального списка (делегирование) ---------- */
+/* ---------- Обработчики виртуального списка ---------- */
 function attachListHandlers(){
   wrapEl.addEventListener('scroll', renderVisible, {passive:true});
   wrapEl.addEventListener('click', e => {
@@ -717,6 +764,24 @@ function updateCart(){
   $('grandTotal').textContent = formatMoney(grand) + (hasRequest ? ' + по запросу' : '');
 }
 
+/* ---------- Состояние кнопки «Сбросить фильтры» ---------- */
+function updateResetButton(pulse){
+  const btn = $('resetFilters');
+  const badge = $('rfBadge');
+  let count = 0;
+  if (currentQuery.trim())    count++;
+  if (currentGroup)           count++;
+  if (currentSubgroup)        count++;
+
+  btn.disabled = count === 0;
+  badge.textContent = count > 0 ? count : '';
+  if (count > 0 && pulse){
+    btn.classList.remove('pulse');
+    void btn.offsetWidth; // force reflow
+    btn.classList.add('pulse');
+  }
+}
+
 /* ---------- Экспорт в Excel ---------- */
 function exportToExcel(){
   if (selected.size === 0){ showToast('Сначала выберите хотя бы одну услугу'); return; }
@@ -765,6 +830,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const onSearch = debounce(()=>{
     currentQuery = $('search').value;
     applyFiltersAndRender();
+    updateResetButton(true);
   }, DEBOUNCE_MS);
   $('search').addEventListener('input', onSearch);
 
@@ -781,11 +847,37 @@ document.addEventListener('DOMContentLoaded', ()=>{
     rebuildSubgroups();
     applyFiltersAndRender();
     wrapEl.scrollTop = 0;
+    updateResetButton(true);
   });
   $('filterSubgroup').addEventListener('change', e=>{
     currentSubgroup = e.target.value;
     applyFiltersAndRender();
     wrapEl.scrollTop = 0;
+    updateResetButton(true);
+  });
+
+  // Кнопка сброса всех фильтров
+  $('resetFilters').addEventListener('click', ()=>{
+    if ($('resetFilters').disabled) return;
+    $('search').value = '';
+    currentQuery = '';
+    currentGroup = '';
+    currentSubgroup = '';
+    $('filterGroup').value = '';
+    rebuildSubgroups();
+    $('filterSubgroup').value = '';
+    applyFiltersAndRender();
+    wrapEl.scrollTop = 0;
+    updateResetButton();
+    showToast('Фильтры сброшены');
+  });
+
+  // Хоткей: "/" фокусирует поиск
+  document.addEventListener('keydown', e=>{
+    if (e.key === '/' && document.activeElement !== $('search')){
+      e.preventDefault();
+      $('search').focus();
+    }
   });
 
   $('discount').addEventListener('input', updateCart);
@@ -808,7 +900,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     $('complexName').value = '';
     $('discount').value = 0;
     updateCart();
-    // обновим только видимые строки
     if (spacerEl){
       spacerEl.querySelectorAll('.service').forEach(row=>{
         row.classList.remove('selected');
@@ -819,7 +910,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     showToast('Список очищен');
   });
 
-  // При изменении размера окна — пересчёт видимой области
   window.addEventListener('resize', debounce(renderVisible, 100));
 
   loadPrices();
